@@ -18,24 +18,25 @@ class MnistModel(torch.nn.Module):
     def forward(self, x):
         x = x.view(-1, 28*28)
         out = self.linear(x)
-        out = torch.nn.functional.log_softmax(out, dim=1)
+        out = torch.nn.functional.softmax(out, dim=1)
         return out
     
     def loss(self, x, y):
         return torch.nn.functional.cross_entropy(self.forward(x), y)
     
-    def accuracy(self, x, y):
-        return (torch.argmax(self.forward(x), dim=1) == y).float().mean()
+
+def accuracy(outputs, labels):
+    preds = torch.argmax(outputs, dim=1)
+    good_preds = (preds == labels).float()
+    return torch.mean(good_preds)
+
+
     
 
 
 if __name__ == '__main__':
     # download the MNIST dataset with pytorch
     mnist = datasets.MNIST(root='./data', train=True, download=True, transform=transforms.ToTensor())
-
-    # show an image
-    plt.imshow(mnist.data[0].numpy().reshape(28, 28), cmap='gray')
-    plt.show()
 
     # split the dataset into train and validation
     train_idx, val_idx = split_indecies(len(mnist))
@@ -44,10 +45,33 @@ if __name__ == '__main__':
     train_loader = DataLoader(mnist, batch_size= 100, sampler=train_sampler)
     val_loader = DataLoader(mnist, batch_size= 100, sampler=val_sampler)
 
-
     model = MnistModel()
 
-    x =1
+    #print one batch information
+    for images, labels in train_loader:
+        print(f"This is the first batch of size: {images.shape}")
+        print(f"First 10 labels: {labels.data[:10]}")
+        
+        outputs = model(images)
+        max_idx = torch.argmax(outputs, dim=1)
+        print(f"First 10 models result: {max_idx.data[:10]}")
+
+        # averaging each number , initialy should be around 0.1 for each number
+        average_prob = torch.mean(outputs, dim=0)
+        print(f"The average probability of each number is: {average_prob[:10]}")
+
+        acc = accuracy(outputs, labels)
+        # print the accuracy of the model with 2 digits precision
+        print(f"The accuracy of the model is: {acc:.2f}") 
+
+        plt.imshow(images[0].numpy().reshape(28, 28), cmap='gray')
+        plt.show()
+        
+        break
+
+
+
+
 
 
 
