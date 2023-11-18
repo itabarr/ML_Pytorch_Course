@@ -4,35 +4,47 @@ import torchvision.transforms as transforms
 
 from torch.utils.data.sampler import SubsetRandomSampler
 from torch.utils.data import DataLoader
+import torch.nn.functional as F
 
 from utils import *
 
 import matplotlib.pyplot as plt
 
 
-class MnistModel(torch.nn.Module):
+
+class MnistModel(torch.torch.nn.Module):
     def __init__(self):
         super().__init__()
         self.linear = torch.nn.Linear(28*28, 10)
-    
-    def forward(self, x):
-        x = x.view(-1, 28*28)
-        out = self.linear(x)
-        out = torch.nn.functional.softmax(out, dim=1)
+        
+    def forward(self, xb):
+        xb = xb.reshape(-1, 784)
+        out = self.linear(xb)
         return out
     
-    def loss(self, x, y):
-        return torch.nn.functional.cross_entropy(self.forward(x), y)
+    def training_step(self, batch):
+        images, labels = batch 
+        out = self(images)                  # Generate predictions
+        loss = F.cross_entropy(out, labels) # Calculate loss
+        return loss
     
-
-def accuracy(outputs, labels):
-    preds = torch.argmax(outputs, dim=1)
-    good_preds = (preds == labels).float()
-    return torch.mean(good_preds)
-
-
+    def validation_step(self, batch):
+        images, labels = batch 
+        out = self(images)                    # Generate predictions
+        loss = F.cross_entropy(out, labels)   # Calculate loss
+        acc = accuracy(out, labels)           # Calculate accuracy
+        return {'val_loss': loss, 'val_acc': acc}
+        
+    def validation_epoch_end(self, outputs):
+        batch_losses = [x['val_loss'] for x in outputs]
+        epoch_loss = torch.stack(batch_losses).mean()   # Combine losses
+        batch_accs = [x['val_acc'] for x in outputs]
+        epoch_acc = torch.stack(batch_accs).mean()      # Combine accuracies
+        return {'val_loss': epoch_loss.item(), 'val_acc': epoch_acc.item()}
     
-
+    def epoch_end(self, epoch, result):
+        print("Epoch [{}], val_loss: {:.4f}, val_acc: {:.4f}".format(epoch, result['val_loss'], result['val_acc']))
+    
 
 if __name__ == '__main__':
     # download the MNIST dataset with pytorch
@@ -69,6 +81,7 @@ if __name__ == '__main__':
         
         break
 
+    fit(100 , 0.01 , model , train_loader , val_loader)
 
 
 
